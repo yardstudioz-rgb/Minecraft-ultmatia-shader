@@ -1,19 +1,14 @@
 #version 120
-varying vec2 texcoord;
+// Final pass: post-processing hooks for AO, bloom, god rays, fog
+varying vec2 gl_TexCoord0;
 uniform sampler2D sceneTex;
 uniform sampler2D depthTex;
-uniform sampler2D ssaoTex; // computed optionally
-uniform sampler2D bloomTex; // computed optionally
-uniform sampler2D lutTex; // color grading 3D LUT as 2D strip optional
-uniform vec3 sunScreenPos; // sun position in screen space
-uniform vec3 moonScreenPos;
-uniform vec3 sunColor;
+uniform sampler2D ssaoTex; // optional
+uniform sampler2D bloomTex; // optional
 uniform float time;
-uniform vec3 cameraPos;
-uniform float wetness; // 0..1 blend for rain
+uniform float wetness;
 
-// Simple SSAO fallback (cheap single-sample)
-float simpleSSAO(vec2 uv) {
+float getAO(vec2 uv){
     #ifdef USE_SSAO
     return texture2D(ssaoTex, uv).r;
     #else
@@ -21,70 +16,32 @@ float simpleSSAO(vec2 uv) {
     #endif
 }
 
-// depth fog
-vec3 depthFog(vec3 color, float depth) {
-    float fogStart = 16.0;
-    float fogEnd = 256.0;
-    float fog = clamp((depth - fogStart) / (fogEnd - fogStart), 0.0, 1.0);
-    vec3 fogColor = vec3(0.6, 0.7, 0.85) * 0.6; // cool atmospheric fog
-    return mix(color, fogColor, fog);
+vec3 depthFog(vec3 col, float depth){
+    float fogStart = 20.0;
+    float fogEnd = 200.0;
+    float f = clamp((depth - fogStart)/(fogEnd - fogStart), 0.0, 1.0);
+    vec3 fogCol = vec3(0.6,0.7,0.85) * 0.6;
+    return mix(col, fogCol, f);
 }
 
-// cheap god rays: radial blur sampling toward sun screen pos
-vec3 godRays(vec2 uv, vec3 col) {
-    #ifdef GOD_RAYS
-    vec2 lightPos = sunScreenPos.xy;
-    vec2 delta = (uv - lightPos);
-    float dist = length(delta);
-    vec2 step = delta * 0.02;
-    vec2 cur = uv;
-    float decay = 0.96;
-    float weight = 0.9;
-    vec3 sum = vec3(0.0);
-    for (int i=0;i<20;i++){
-        cur -= step;
-        vec3 sample = texture2D(sceneTex, cur).rgb;
-        sum += sample * weight;
-        weight *= decay;
-    }
-    // tone down when sun occluded -> use brighter sum
-    return col + sum * 0.08;
-    #else
-    return col;
-    #endif
-}
+void main(){
+    vec2 uv = gl_TexCoord0.xy;
+    vec3 col = texture2D(sceneTex, uv).rgb;
+    float depth = texture2D(depthTex, uv).r;
 
-void main() {
-    vec3 color = texture2D(sceneTex, texcoord).rgb;
-    float depth = texture2D(depthTex, texcoord).r;
-    // SSAO
-    float ao = simpleSSAO(texcoord);
-    color *= ao;
+    float ao = getAO(uv);
+    col *= ao;
 
-    // Bloom blend (bloomTex computed by separate bloom pass)
     #ifdef USE_BLOOM
-    color += texture2D(bloomTex, texcoord).rgb * 0.8;
+    col += texture2D(bloomTex, uv).rgb * 0.7;
     #endif
 
-    // God rays
-    color = godRays(texcoord, color);
-
-    // Wet surfaces / puddles: subtle screen-space reflection blend based on wetness
+    // wetness: simple desaturated reflection
     #ifdef USE_WETNESS
-    color = mix(color, vec3(0.98,1.02,1.03) * color, clamp(wetness*0.6, 0.0,1.0));
+    col = mix(col, vec3(1.0)*(col.r*0.3+col.g*0.6+col.b*0.1), clamp(wetness*0.6,0.0,1.0));
     #endif
 
-    // Color grading using small LUT (if provided): simple gamma + contrast + lift
-    color = pow(color, vec3(1.0/2.2)); // gamma correction
-    color = mix(color*0.95 + vec3(0.02,0.01,-0.02), color, 0.0); // placeholder lift
-
-    // Depth fog to increase cave/mist immersion
-    color = depthFog(color, depth * 200.0);
-
-    // Night adjustments: moonlight tint and star glow (overlay texture)
-    #ifdef NIGHT_EFFECTS
-    // blend moon tint when dayFactor low, not implemented here
-    #endif
-
-    gl_FragColor = vec4(color, 1.0);
+    col = depthFog(col, depth*200.0);
+    col = pow(col, vec3(1.0/2.2));
+    gl_FragColor = vec4(col, 1.0);
 }

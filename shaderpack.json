@@ -1,8 +1,8 @@
 {
   "pack_name": "AetherRealism",
-  "version": "1.0",
-  "description": "Ultra-immersive realism-focused shader pack: PBR, atmosphere, volumetrics, realistic water, vegetation wind, cinematic post.",
-  "authors": ["yardstudioz-rgb (generated scaffold)"],
+  "version": "2.0",
+  "description": "Rewritten OptiFine/Iris-compatible shader pack focused on realism, atmosphere, volumetrics, water, and vegetation with performance presets.",
+  "authors": ["yardstudioz-rgb (generated)"],
   "presets": {
     "ultra": { "clouds": "high", "shadows": "high", "ssao": true, "ssr": true, "volumetrics": "high", "water": "high" },
     "balanced": { "clouds": "medium", "shadows": "medium", "ssao": true, "ssr": false, "volumetrics": "medium", "water": "medium" },

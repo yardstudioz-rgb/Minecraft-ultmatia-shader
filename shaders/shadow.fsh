@@ -1,8 +1,8 @@
 #version 120
-// Shadow pass placeholder: implement cascaded shadow maps + PCF/PCSS here
-varying vec2 texcoord;
+// Shadow pass placeholder - supports single shadow map
+varying vec2 gl_TexCoord0;
 uniform sampler2D shadowMap;
 void main(){
-    float shadow = texture2D(shadowMap, texcoord).r;
-    gl_FragColor = vec4(vec3(shadow),1.0);
+    float s = texture2D(shadowMap, gl_TexCoord0.xy).r;
+    gl_FragColor = vec4(vec3(s),1.0);
 }

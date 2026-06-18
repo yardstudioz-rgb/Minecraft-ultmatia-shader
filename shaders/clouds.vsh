@@ -1,5 +1,5 @@
-// Minimal cloud vertex pass (screen-space quad)
 #version 120
+// Clouds vertex: screen-space quad
 attribute vec4 mc_Vertex;
 attribute vec2 mc_TexCoord0;
 varying vec2 uv;
